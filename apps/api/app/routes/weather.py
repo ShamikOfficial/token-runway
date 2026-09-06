@@ -5,6 +5,7 @@ import uuid
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel, Field
 
+from app.routes.fleet import assert_takeoffs_allowed
 from runway_core.flight_plan import estimate_flight_fuel
 from runway_core.preflight import abandon_takeoff_decision
 from runway_core.runway import compute_runway
@@ -40,6 +41,7 @@ def playbooks():
 
 @router.post("/weather/plan")
 def weather_plan(body: WeatherPlanBody):
+    assert_takeoffs_allowed()
     settings = get_settings()
     store = FuelStore(settings)
     budget = store.get_budget(body.budget_id)

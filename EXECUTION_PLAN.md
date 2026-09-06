@@ -259,9 +259,10 @@ Do not skip Stage 1–2; Stage 4 can slim if time-boxed (Tailwind + one Headwind
 | Stage | Status |
 |-------|--------|
 | 1 Fuel & Runway | **Complete** |
-| 2 Flight Plan & Abandon | **Complete** (plans, CLEAR/REPLAN/ABANDON, forecast, tower SNS) |
-| 3 Emergency Landing | Ready to start |
-| 4 Weather | Blocked on 3 |
-| 5 Tower polish / CDK | Blocked on 4 |
+| 2 Flight Plan & Abandon | **Complete** |
+| 3 Emergency Landing | **Complete** |
+| 4 Weather | **Complete** |
+| 5 Tower polish / fleet | **Complete** (fleet controls + adapter + infra notes) |
 
-When you say **go Stage 3**, we add Emergency Landing, checkpoints, and the black box.
+Portfolio demo: `python scripts/demo_full.py` with Compose up.
+

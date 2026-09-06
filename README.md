@@ -1,12 +1,10 @@
 # TokenRunway
 
-**LLM flight control for budget runway** — ingest usage, estimate flight fuel, **Abandon Takeoff** when you can’t finish, and project the next 30 days.
+**LLM flight control for budget runway** — plan fuel before takeoff, land safely when burn spikes, and make cost↔safety tradeoffs visible (Tailwind / Headwind).
 
-Local AWS is **[Floci](https://floci.io/)** on port `4566`. Same boto3 calls you would make against real AWS.
+Local AWS via **[Floci](https://floci.io/)** · Public repo: **https://github.com/ShamikOfficial/token-runway**
 
-Repo: **https://github.com/ShamikOfficial/token-runway** (public)
-
-> Stages 1–2 of 5 — see `EXECUTION_PLAN.md` for Emergency Landing, Tailwind/Headwind, etc.
+Stages **1–5 complete**. See `EXECUTION_PLAN.md`.
 
 ---
 
@@ -14,82 +12,48 @@ Repo: **https://github.com/ShamikOfficial/token-runway** (public)
 
 ```bash
 docker compose up --build -d
+python -m pip install httpx PyYAML
+python scripts/demo_full.py
 ```
 
-Wait until the API is healthy, then:
-
-```bash
-python -m pip install httpx
-python scripts/demo_stage1.py
-python scripts/demo_stage2.py
-python scripts/verify_floci.py
-```
-
-Open the dashboard: **http://localhost:8000/**
-
-API docs: **http://localhost:8000/docs**
+Dashboard: **http://localhost:8000/** · API docs: **/docs**
 
 ---
 
-## What’s live
+## Demo map
 
-| Stage | Capability |
-|-------|------------|
-| 1 | Usage ingest, LiteLLM pricing, runway days, Floci DynamoDB/S3 |
-| 2 | Flight plans, pre-flight, **Abandon Takeoff** (CLEAR/REPLAN/ABANDON), 30-day forecast, Tower SNS scan |
-
----
-
-## Handy examples
-
-```bash
-# create a fuel tank
-curl -s http://localhost:8000/v1/budgets \
-  -H "content-type: application/json" \
-  -d "{\"name\":\"Weekend build\",\"limit_usd\":50}"
-
-# plan a flight (replace BUDGET_ID)
-curl -s http://localhost:8000/v1/flights/plan \
-  -H "content-type: application/json" \
-  -d "{\"budget_id\":\"BUDGET_ID\",\"name\":\"Agent weekend\",\"model\":\"gpt-4o\",\"task_type\":\"agent\",\"estimated_turns\":20,\"agent_depth\":4}"
-
-# 30-day forecast
-curl -s "http://localhost:8000/v1/budgets/BUDGET_ID/forecast?days=30"
-
-# tower scan (SNS on Floci)
-curl -s -X POST http://localhost:8000/v1/budgets/BUDGET_ID/tower/scan
-```
+| Script | What it proves |
+|--------|----------------|
+| `demo_stage1.py` | Usage ingest + runway days on Floci |
+| `demo_stage2.py` | Abandon Takeoff → CLEAR + 30-day forecast + tower |
+| `demo_stage3.py` | Emergency Landing + Holding + Black Box + resume |
+| `demo_stage4.py` | Tailwind / Headwind / Crosswind |
+| `demo_stage5.py` | Weight & Balance, Ground Stop, NOTAMs |
+| `demo_full.py` | Runs all of the above |
+| `verify_floci.py` | DynamoDB + S3 proof |
 
 ---
 
-## Local Python tests
+## Features
+
+- **Fuel & Runway** — LiteLLM pricing + license overrides, EWMA burn, bingo reserve  
+- **Flight plans** — task growth curves, CLEAR / REPLAN / ABANDON  
+- **In flight** — start, hold, emergency landing checkpoints (S3), black box audit, resume  
+- **Weather** — Tailwind playbooks, Headwind risk surcharges, diversion / jettison hints  
+- **Fleet** — weight & balance, ground stop, NOTAMs  
+- **Adapter** — optional LiteLLM success callback (`packages/runway_adapters`)
+
+---
+
+## Tests
 
 ```bash
 python -m pip install -e packages/runway_core -r apps/api/requirements.txt -r requirements-dev.txt
 python -m pytest -q
 ```
 
-With the stack up, live Floci tests also run:
-
-```bash
-python -m pytest -q tests/test_stage1_live.py tests/test_stage2_live.py
-```
-
 ---
 
-## Layout
+## Why Floci
 
-```text
-apps/api               FastAPI + entrypoint (waits for Floci, seeds, serves UI)
-apps/ui/public         Dashboard (runway + flight plan + tower)
-packages/runway_core   pricing, burn, runway, flight_plan, forecast, tower, store
-scripts/seed_floci.py  DynamoDB + S3 + SNS
-scripts/demo_stage1.py Stage 1 exit demo
-scripts/demo_stage2.py Stage 2 E2E (abandon → clear → forecast → tower)
-```
-
----
-
-## Why Floci (portfolio note)
-
-Coding agents and demos should not need a paid cloud account to prove AWS skills. TokenRunway points boto3 at `http://floci:4566` in Compose. Flip `AWS_ENDPOINT_URL` off (and use real creds) when you deploy to AWS — the store code stays the same.
+Same boto3 code path as real AWS. Compose points at `http://floci:4566`. Clear `AWS_ENDPOINT_URL` for a real account later — see `infra/README.md`.
