@@ -1,0 +1,79 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>TokenRunway — Fuel & Runway</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,400;0,9..40,600;0,9..40,700;1,9..40,400&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="/static/styles.css" />
+</head>
+<body>
+  <div class="sky">
+    <header class="top">
+      <div class="brand">
+        <span class="mark">TR</span>
+        <div>
+          <h1>TokenRunway</h1>
+          <p class="tag">Stage 1 — fuel burn &amp; days of runway</p>
+        </div>
+      </div>
+      <div id="healthChip" class="chip muted">checking Floci…</div>
+    </header>
+
+    <main class="layout">
+      <section class="panel">
+        <h2>Open a fuel tank</h2>
+        <p class="hint">Create a budget, then log usage. Runway = usable dollars ÷ daily burn.</p>
+        <form id="budgetForm" class="stack">
+          <label>Name <input name="name" value="Weekend build" required /></label>
+          <label>Limit (USD) <input name="limit_usd" type="number" step="0.01" min="1" value="50" required /></label>
+          <button type="submit">Create budget</button>
+        </form>
+        <div id="budgetList" class="list"></div>
+      </section>
+
+      <section class="panel accent">
+        <h2>Runway</h2>
+        <div id="runwayEmpty" class="empty">Pick or create a budget to see runway.</div>
+        <div id="runwayCard" class="runway hidden">
+          <div class="big" id="daysLeft">—</div>
+          <div class="label" id="daysLabel">days remaining</div>
+          <div class="status" id="statusPill">—</div>
+          <p class="note" id="runwayNote"></p>
+          <dl class="metrics">
+            <div><dt>Limit</dt><dd id="mLimit">—</dd></div>
+            <div><dt>Spent</dt><dd id="mSpent">—</dd></div>
+            <div><dt>Remaining</dt><dd id="mRemain">—</dd></div>
+            <div><dt>Daily burn</dt><dd id="mBurn">—</dd></div>
+            <div><dt>Bingo reserve</dt><dd id="mBingo">—</dd></div>
+            <div><dt>Events</dt><dd id="mEvents">—</dd></div>
+          </dl>
+        </div>
+      </section>
+
+      <section class="panel wide">
+        <h2>Log usage</h2>
+        <form id="usageForm" class="grid-form">
+          <label>Budget id <input name="budget_id" id="usageBudgetId" required placeholder="select a budget" /></label>
+          <label>Model
+            <select name="model">
+              <option value="gpt-4o-mini">gpt-4o-mini</option>
+              <option value="gpt-4o">gpt-4o</option>
+              <option value="claude-3-5-sonnet-20241022">claude-3-5-sonnet-20241022</option>
+              <option value="my-company/gpt-4o-license">my-company/gpt-4o-license (override)</option>
+            </select>
+          </label>
+          <label>Prompt tokens <input name="prompt_tokens" type="number" min="0" value="1200" required /></label>
+          <label>Completion tokens <input name="completion_tokens" type="number" min="0" value="400" required /></label>
+          <label>Project id <input name="project_id" value="demo" /></label>
+          <button type="submit">Ingest usage</button>
+        </form>
+        <pre id="lastEvent" class="log"></pre>
+      </section>
+    </main>
+  </div>
+  <script src="/static/app.js"></script>
+</body>
+</html>

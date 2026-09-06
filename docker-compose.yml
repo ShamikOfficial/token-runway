@@ -1,0 +1,40 @@
+services:
+  floci:
+    image: floci/floci:latest
+    ports:
+      - "4566:4566"
+    volumes:
+      - ./data/floci:/app/data
+
+  api:
+    build:
+      context: .
+      dockerfile: apps/api/Dockerfile
+    ports:
+      - "8000:8000"
+    environment:
+      RUNWAY_ENV: local
+      # Compose network: talk to the floci service, not localhost.
+      AWS_ENDPOINT_URL: http://floci:4566
+      AWS_ACCESS_KEY_ID: test
+      AWS_SECRET_ACCESS_KEY: test
+      AWS_DEFAULT_REGION: us-east-1
+      RUNWAY_BUDGETS_TABLE: tokenrunway-budgets
+      RUNWAY_USAGE_TABLE: tokenrunway-usage
+      RUNWAY_RAW_BUCKET: tokenrunway-raw
+      RUNWAY_PRICING_OVERRIDES: /app/samples/pricing_overrides.json
+      RUNWAY_EWMA_ALPHA: "0.3"
+      RUNWAY_BINGO_RESERVE_PCT: "0.10"
+    volumes:
+      - ./samples:/app/samples:ro
+      - ./packages/runway_core:/app/packages/runway_core
+      - ./apps/api/app:/app/apps/api/app
+      - ./apps/ui/public:/app/apps/ui/public
+    depends_on:
+      - floci
+    healthcheck:
+      test: ["CMD", "curl", "-sf", "http://localhost:8000/health"]
+      interval: 5s
+      timeout: 5s
+      retries: 24
+      start_period: 25s

@@ -1,0 +1,13 @@
+{
+  "_comment": "Override LiteLLM public prices for your own licenses / enterprise rates. Costs are USD per 1M tokens.",
+  "models": {
+    "my-company/gpt-4o-license": {
+      "input_cost_per_million": 2.50,
+      "output_cost_per_million": 10.00
+    },
+    "bedrock/custom-claude-deal": {
+      "input_cost_per_million": 2.00,
+      "output_cost_per_million": 8.00
+    }
+  }
+}
