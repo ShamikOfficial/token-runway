@@ -1,0 +1,22 @@
+# Headwind — spend more on purpose when risk is high
+profiles:
+  - id: code_exec
+    title: Code execution access
+    description: Extra verification pass + constrained system prompt when the agent can run code.
+    surcharge_pct: 35
+    risk_tags: [code_exec]
+  - id: full_fs
+    title: Full filesystem access
+    description: Require a diff/review summary before writes; second-pass safety check.
+    surcharge_pct: 45
+    risk_tags: [full_fs]
+  - id: cloud_admin
+    title: Cloud admin credentials
+    description: Force explicit confirmations and deny destructive ops without human OK.
+    surcharge_pct: 60
+    risk_tags: [cloud_admin]
+  - id: pii
+    title: PII in context
+    description: Add redaction instructions and a privacy review completion.
+    surcharge_pct: 25
+    risk_tags: [pii]

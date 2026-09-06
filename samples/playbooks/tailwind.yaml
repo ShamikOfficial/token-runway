@@ -1,0 +1,21 @@
+# Tailwind — spend less, keep the job useful
+rules:
+  - id: cheaper_model
+    title: Step down to a cheaper model
+    description: Use gpt-4o-mini (or Haiku) for drafts; reserve the expensive model for final polish.
+    estimated_save_pct: 55
+  - id: cap_turns
+    title: Cap agent turns
+    description: Hard-stop loops at a max turn count to kill runaway context growth.
+    estimated_save_pct: 30
+    applies_to: [agent, rag, codegen]
+  - id: summarize_history
+    title: Summarize history instead of replaying it
+    description: Compress prior turns into a short brief before the next call.
+    estimated_save_pct: 25
+    applies_to: [agent, rag, chat]
+  - id: trim_tools
+    title: Drop unused tools from the prompt
+    description: Only expose tools the step needs — tool schemas are expensive tokens.
+    estimated_save_pct: 15
+    applies_to: [agent, codegen]
