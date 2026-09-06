@@ -28,6 +28,7 @@ class Settings(BaseSettings):
     runway_budgets_table: str = "tokenrunway-budgets"
     runway_usage_table: str = "tokenrunway-usage"
     runway_flights_table: str = "tokenrunway-flights"
+    runway_audit_table: str = "tokenrunway-audit"
     runway_raw_bucket: str = "tokenrunway-raw"
     runway_tower_topic: str = "tokenrunway-tower"
 

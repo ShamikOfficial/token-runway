@@ -1,7 +1,5 @@
 """
-TokenRunway API — Stage 1: fuel ingest + runway readout.
-
-Talks to DynamoDB/S3 on Floci when AWS_ENDPOINT_URL is set.
+TokenRunway API — flight control on Floci / AWS.
 """
 
 from __future__ import annotations
@@ -13,14 +11,14 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 
-from app.routes import budgets, flights, forecast, health, tower, usage
+from app.routes import budgets, flight_ops, flights, forecast, health, tower, usage
 
 UI_DIR = Path(__file__).resolve().parents[2] / "ui" / "public"
 
 app = FastAPI(
     title="TokenRunway",
-    description="LLM fuel planner — runway, flight plans, Abandon Takeoff (Floci / AWS).",
-    version="0.2.0",
+    description="LLM flight control — runway, takeoff gates, emergency landing (Floci / AWS).",
+    version="0.3.0",
 )
 
 app.add_middleware(
@@ -35,6 +33,7 @@ app.include_router(health.router)
 app.include_router(budgets.router, prefix="/v1")
 app.include_router(usage.router, prefix="/v1")
 app.include_router(flights.router, prefix="/v1")
+app.include_router(flight_ops.router, prefix="/v1")
 app.include_router(forecast.router, prefix="/v1")
 app.include_router(tower.router, prefix="/v1")
 
@@ -44,12 +43,7 @@ def dashboard():
     index = UI_DIR / "index.html"
     if index.exists():
         return FileResponse(index)
-    return {
-        "service": "TokenRunway",
-        "stage": 1,
-        "docs": "/docs",
-        "hint": "UI not found — open /docs for the API.",
-    }
+    return {"service": "TokenRunway", "stage": 3, "docs": "/docs"}
 
 
 if UI_DIR.exists():

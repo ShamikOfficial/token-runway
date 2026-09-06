@@ -56,6 +56,7 @@ class FuelStore:
         self.budgets = self._db.Table(self.settings.runway_budgets_table)
         self.usage = self._db.Table(self.settings.runway_usage_table)
         self.flights = self._db.Table(self.settings.runway_flights_table)
+        self.audit = self._db.Table(self.settings.runway_audit_table)
         self._tower_topic_arn: str | None = None
 
     def create_budget(
@@ -101,6 +102,7 @@ class FuelStore:
         project_id: str | None = None,
         occurred_at: str | None = None,
         metadata: dict | None = None,
+        flight_id: str | None = None,
     ) -> dict:
         if not self.get_budget(budget_id):
             raise KeyError(f"Unknown budget_id: {budget_id}")
@@ -121,6 +123,7 @@ class FuelStore:
             "cost_usd": float(cost_usd),
             "price_source": price_source,
             "project_id": project_id,
+            "flight_id": flight_id,
             "occurred_at": occurred_at,
             "metadata": metadata or {},
         }
@@ -196,3 +199,49 @@ class FuelStore:
         except ClientError as exc:
             logger.warning("Tower SNS publish failed: %s", exc)
             return None
+
+    def append_audit(
+        self,
+        *,
+        budget_id: str,
+        action: str,
+        detail: dict | None = None,
+        flight_id: str | None = None,
+    ) -> dict:
+        event_id = str(uuid.uuid4())
+        occurred_at = _now_iso()
+        item = {
+            "budget_id": budget_id,
+            "sk": f"{occurred_at}#{event_id}",
+            "event_id": event_id,
+            "action": action,
+            "flight_id": flight_id,
+            "occurred_at": occurred_at,
+            "detail": detail or {},
+        }
+        self.audit.put_item(Item=_to_dynamo(item))
+        return item
+
+    def list_audit(self, budget_id: str, limit: int = 100) -> list[dict]:
+        resp = self.audit.query(
+            KeyConditionExpression="budget_id = :b",
+            ExpressionAttributeValues={":b": budget_id},
+            Limit=limit,
+            ScanIndexForward=False,
+        )
+        return [_from_dynamo(i) for i in resp.get("Items", [])]
+
+    def write_checkpoint(self, checkpoint: dict) -> str:
+        flight_id = checkpoint["flight_id"]
+        key = f"checkpoints/{flight_id}/{checkpoint['saved_at'].replace(':', '-')}.json"
+        self._s3.put_object(
+            Bucket=self.settings.runway_raw_bucket,
+            Key=key,
+            Body=json.dumps(checkpoint, default=str).encode("utf-8"),
+            ContentType="application/json",
+        )
+        return key
+
+    def read_checkpoint(self, key: str) -> dict:
+        obj = self._s3.get_object(Bucket=self.settings.runway_raw_bucket, Key=key)
+        return json.loads(obj["Body"].read().decode("utf-8"))

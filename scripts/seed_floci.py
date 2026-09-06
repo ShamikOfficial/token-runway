@@ -94,6 +94,27 @@ def ensure_bucket(client, bucket: str, region: str) -> None:
     print(f"  created bucket: {bucket}")
 
 
+def ensure_audit_table(client, table_name: str) -> None:
+    existing = client.list_tables().get("TableNames", [])
+    if table_name in existing:
+        print(f"  audit table already there: {table_name}")
+        return
+
+    client.create_table(
+        TableName=table_name,
+        AttributeDefinitions=[
+            {"AttributeName": "budget_id", "AttributeType": "S"},
+            {"AttributeName": "sk", "AttributeType": "S"},
+        ],
+        KeySchema=[
+            {"AttributeName": "budget_id", "KeyType": "HASH"},
+            {"AttributeName": "sk", "KeyType": "RANGE"},
+        ],
+        BillingMode="PAY_PER_REQUEST",
+    )
+    wait_a_sec(f"  created audit table: {table_name}")
+
+
 def ensure_tower_topic(client, topic_name: str) -> None:
     resp = client.create_topic(Name=topic_name)
     print(f"  tower SNS topic ready: {resp['TopicArn']}")
@@ -101,7 +122,7 @@ def ensure_tower_topic(client, topic_name: str) -> None:
 
 def main() -> int:
     settings = get_settings()
-    print("Seeding Floci / AWS for TokenRunway (Stage 1–2)")
+    print("Seeding Floci / AWS for TokenRunway (Stage 1–3)")
     print(f"  endpoint: {settings.aws_endpoint_url or '(real AWS)'}")
     print(f"  region:   {settings.aws_default_region}")
 
@@ -112,10 +133,11 @@ def main() -> int:
     ensure_budgets_table(ddb, settings.runway_budgets_table)
     ensure_usage_table(ddb, settings.runway_usage_table)
     ensure_flights_table(ddb, settings.runway_flights_table)
+    ensure_audit_table(ddb, settings.runway_audit_table)
     ensure_bucket(s3, settings.runway_raw_bucket, settings.aws_default_region)
     ensure_tower_topic(sns, settings.runway_tower_topic)
 
-    print("Done. Fuel tanks + tower are ready.")
+    print("Done. Fuel tanks + tower + black box are ready.")
     return 0
 
 
