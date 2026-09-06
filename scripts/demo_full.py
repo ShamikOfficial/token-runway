@@ -3,6 +3,7 @@
 
 from __future__ import annotations
 
+import argparse
 import subprocess
 import sys
 from pathlib import Path
@@ -19,7 +20,10 @@ SCRIPTS = [
 
 
 def main() -> int:
-    base = sys.argv[1] if len(sys.argv) > 1 else "http://localhost:8000"
+    parser = argparse.ArgumentParser(description="Run Stages 1–5 demos end-to-end.")
+    parser.add_argument("--base", default="http://localhost:8000", help="API base URL")
+    args = parser.parse_args()
+    base = args.base
     for name in SCRIPTS:
         path = ROOT / "scripts" / name
         print("\n====", name, "====")
