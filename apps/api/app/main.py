@@ -13,14 +13,14 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 
-from app.routes import budgets, health, usage
+from app.routes import budgets, flights, forecast, health, tower, usage
 
 UI_DIR = Path(__file__).resolve().parents[2] / "ui" / "public"
 
 app = FastAPI(
     title="TokenRunway",
-    description="LLM fuel planner — Stage 1 runway & usage ingest (Floci / AWS).",
-    version="0.1.0",
+    description="LLM fuel planner — runway, flight plans, Abandon Takeoff (Floci / AWS).",
+    version="0.2.0",
 )
 
 app.add_middleware(
@@ -34,6 +34,9 @@ app.add_middleware(
 app.include_router(health.router)
 app.include_router(budgets.router, prefix="/v1")
 app.include_router(usage.router, prefix="/v1")
+app.include_router(flights.router, prefix="/v1")
+app.include_router(forecast.router, prefix="/v1")
+app.include_router(tower.router, prefix="/v1")
 
 
 @app.get("/")

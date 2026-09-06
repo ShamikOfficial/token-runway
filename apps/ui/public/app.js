@@ -1,4 +1,4 @@
-const state = { budgets: [], selected: null };
+const state = { budgets: [], selected: null, lastFlightId: null };
 
 async function api(path, options = {}) {
   const res = await fetch(path, {
@@ -22,7 +22,7 @@ async function refreshHealth() {
   const chip = document.getElementById("healthChip");
   try {
     const h = await api("/health");
-    chip.textContent = h.floci ? "Floci connected" : `env: ${h.env}`;
+    chip.textContent = h.floci ? `Floci · stage ${h.stage}` : `env: ${h.env}`;
     chip.className = "chip ok";
   } catch (err) {
     chip.textContent = "API down";
@@ -53,6 +53,7 @@ async function loadBudgets() {
   renderBudgets();
   if (state.selected) {
     document.getElementById("usageBudgetId").value = state.selected;
+    document.getElementById("flightBudgetId").value = state.selected;
     await loadRunway(state.selected);
   }
 }
@@ -60,6 +61,7 @@ async function loadBudgets() {
 async function selectBudget(id) {
   state.selected = id;
   document.getElementById("usageBudgetId").value = id;
+  document.getElementById("flightBudgetId").value = id;
   renderBudgets();
   await loadRunway(id);
 }
@@ -112,6 +114,66 @@ document.getElementById("usageForm").addEventListener("submit", async (e) => {
     await loadRunway(body.budget_id);
   } catch (err) {
     document.getElementById("lastEvent").textContent = String(err.message || err);
+  }
+});
+
+document.getElementById("flightForm").addEventListener("submit", async (e) => {
+  e.preventDefault();
+  const fd = new FormData(e.target);
+  const body = {
+    budget_id: fd.get("budget_id"),
+    name: fd.get("name"),
+    model: fd.get("model"),
+    task_type: fd.get("task_type"),
+    estimated_turns: Number(fd.get("estimated_turns")),
+    agent_depth: Number(fd.get("agent_depth")),
+  };
+  try {
+    const plan = await api("/v1/flights/plan", { method: "POST", body: JSON.stringify(body) });
+    state.lastFlightId = plan.flight_id;
+    document.getElementById("takeoffCard").classList.remove("hidden");
+    document.getElementById("takeoffDecision").textContent = plan.takeoff.decision;
+    document.getElementById("takeoffReason").textContent = plan.takeoff.reason;
+    document.getElementById("takeoffCosts").textContent =
+      `p50 ${money(plan.estimate.p50.cost_usd)} · p90 ${money(plan.estimate.p90.cost_usd)} · usable ${money(plan.takeoff.usable_usd)}`;
+    const ul = document.getElementById("takeoffSuggestions");
+    ul.innerHTML = "";
+    for (const tip of plan.takeoff.suggestions || []) {
+      const li = document.createElement("li");
+      li.textContent = tip;
+      ul.appendChild(li);
+    }
+    document.getElementById("forecastLog").textContent = JSON.stringify(
+      { flight_id: plan.flight_id, takeoff: plan.takeoff, estimate: plan.estimate },
+      null,
+      2
+    );
+  } catch (err) {
+    document.getElementById("forecastLog").textContent = String(err.message || err);
+  }
+});
+
+document.getElementById("forecastBtn").addEventListener("click", async () => {
+  const bid = document.getElementById("flightBudgetId").value;
+  if (!bid) return;
+  const params = new URLSearchParams({ days: "30" });
+  if (state.lastFlightId) params.set("flight_id", state.lastFlightId);
+  try {
+    const data = await api(`/v1/budgets/${bid}/forecast?${params}`);
+    document.getElementById("forecastLog").textContent = JSON.stringify(data, null, 2);
+  } catch (err) {
+    document.getElementById("forecastLog").textContent = String(err.message || err);
+  }
+});
+
+document.getElementById("towerBtn").addEventListener("click", async () => {
+  const bid = document.getElementById("flightBudgetId").value;
+  if (!bid) return;
+  try {
+    const data = await api(`/v1/budgets/${bid}/tower/scan`, { method: "POST" });
+    document.getElementById("forecastLog").textContent = JSON.stringify(data, null, 2);
+  } catch (err) {
+    document.getElementById("forecastLog").textContent = String(err.message || err);
   }
 });
 

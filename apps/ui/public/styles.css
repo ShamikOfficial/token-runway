@@ -166,8 +166,10 @@ button:hover { filter: brightness(1.08); }
   max-height: 14rem;
 }
 
-.hidden { display: none !important; }
-.empty { color: rgba(244,255,250,0.75); }
+.mono { font-family: "JetBrains Mono", monospace; font-size: 0.85rem; }
+.takeoff { margin-top: 1rem; padding: 0.9rem; border-radius: 0.7rem; border: 1px solid var(--line); background: #fff; }
+.takeoff .status { font-weight: 700; letter-spacing: 0.04em; }
+.takeoff ul { margin: 0.4rem 0 0; padding-left: 1.1rem; color: var(--muted); }
 
 @media (max-width: 860px) {
   .layout { grid-template-columns: 1fr; }

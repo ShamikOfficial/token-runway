@@ -7,7 +7,7 @@ from datetime import date, datetime, timezone
 from typing import Iterable
 
 
-def _as_utc_date(value: str | datetime | date) -> date:
+def as_utc_date(value: str | datetime | date) -> date:
     if isinstance(value, date) and not isinstance(value, datetime):
         return value
     if isinstance(value, datetime):
@@ -26,7 +26,7 @@ def spend_by_day(events: Iterable[dict]) -> dict[date, float]:
     """Sum cost_usd per calendar day (UTC)."""
     buckets: dict[date, float] = defaultdict(float)
     for event in events:
-        day = _as_utc_date(event["occurred_at"])
+        day = as_utc_date(event["occurred_at"])
         buckets[day] += float(event["cost_usd"])
     return dict(sorted(buckets.items()))
 

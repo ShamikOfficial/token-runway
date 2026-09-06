@@ -11,7 +11,7 @@ from typing import Any
 
 from botocore.exceptions import ClientError
 
-from runway_core.aws_clients import dynamodb_resource, s3_client
+from runway_core.aws_clients import dynamodb_resource, s3_client, sns_client
 from runway_core.settings import Settings, get_settings
 
 logger = logging.getLogger(__name__)
@@ -46,14 +46,17 @@ def _from_dynamo(value: Any) -> Any:
 
 
 class FuelStore:
-    """Budgets + usage events. Named FuelStore because Stage 1 is about fuel."""
+    """Budgets + usage + flight plans. Stage 1 fuel, Stage 2 takeoff planning."""
 
     def __init__(self, settings: Settings | None = None):
         self.settings = settings or get_settings()
         self._db = dynamodb_resource(self.settings)
         self._s3 = s3_client(self.settings)
+        self._sns = sns_client(self.settings)
         self.budgets = self._db.Table(self.settings.runway_budgets_table)
         self.usage = self._db.Table(self.settings.runway_usage_table)
+        self.flights = self._db.Table(self.settings.runway_flights_table)
+        self._tower_topic_arn: str | None = None
 
     def create_budget(
         self,
@@ -147,3 +150,49 @@ class FuelStore:
         except ClientError as exc:
             # Don't fail the user request if archive hiccups — log and move on.
             logger.warning("Could not archive usage to S3 (%s): %s", key, exc)
+
+    def save_flight_plan(self, plan: dict) -> dict:
+        item = dict(plan)
+        item.setdefault("created_at", _now_iso())
+        item["updated_at"] = _now_iso()
+        self.flights.put_item(Item=_to_dynamo(item))
+        return item
+
+    def get_flight(self, flight_id: str) -> dict | None:
+        resp = self.flights.get_item(Key={"flight_id": flight_id})
+        item = resp.get("Item")
+        return _from_dynamo(item) if item else None
+
+    def list_flights(self, budget_id: str | None = None, limit: int = 50) -> list[dict]:
+        if budget_id:
+            # Stage 2: scan + filter is fine at demo scale
+            resp = self.flights.scan(
+                FilterExpression="budget_id = :b",
+                ExpressionAttributeValues={":b": budget_id},
+                Limit=limit,
+            )
+        else:
+            resp = self.flights.scan(Limit=limit)
+        return [_from_dynamo(i) for i in resp.get("Items", [])]
+
+    def ensure_tower_topic(self) -> str:
+        if self._tower_topic_arn:
+            return self._tower_topic_arn
+        resp = self._sns.create_topic(Name=self.settings.runway_tower_topic)
+        self._tower_topic_arn = resp["TopicArn"]
+        return self._tower_topic_arn
+
+    def publish_tower_alert(self, alert: dict, budget_id: str) -> dict | None:
+        """Best-effort SNS publish — Floci should accept create_topic + publish."""
+        try:
+            arn = self.ensure_tower_topic()
+            payload = {"budget_id": budget_id, **alert}
+            resp = self._sns.publish(
+                TopicArn=arn,
+                Subject=f"TokenRunway {alert.get('code', 'ALERT')}",
+                Message=json.dumps(payload, default=str),
+            )
+            return {"topic_arn": arn, "message_id": resp.get("MessageId")}
+        except ClientError as exc:
+            logger.warning("Tower SNS publish failed: %s", exc)
+            return None

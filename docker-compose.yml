@@ -21,7 +21,9 @@ services:
       AWS_DEFAULT_REGION: us-east-1
       RUNWAY_BUDGETS_TABLE: tokenrunway-budgets
       RUNWAY_USAGE_TABLE: tokenrunway-usage
+      RUNWAY_FLIGHTS_TABLE: tokenrunway-flights
       RUNWAY_RAW_BUCKET: tokenrunway-raw
+      RUNWAY_TOWER_TOPIC: tokenrunway-tower
       RUNWAY_PRICING_OVERRIDES: /app/samples/pricing_overrides.json
       RUNWAY_EWMA_ALPHA: "0.3"
       RUNWAY_BINGO_RESERVE_PCT: "0.10"

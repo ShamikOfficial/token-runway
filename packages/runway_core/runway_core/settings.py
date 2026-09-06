@@ -27,7 +27,9 @@ class Settings(BaseSettings):
 
     runway_budgets_table: str = "tokenrunway-budgets"
     runway_usage_table: str = "tokenrunway-usage"
+    runway_flights_table: str = "tokenrunway-flights"
     runway_raw_bucket: str = "tokenrunway-raw"
+    runway_tower_topic: str = "tokenrunway-tower"
 
     runway_pricing_overrides: str = str(_REPO_ROOT / "samples" / "pricing_overrides.json")
     runway_ewma_alpha: float = 0.3

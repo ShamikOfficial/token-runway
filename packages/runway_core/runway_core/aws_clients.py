@@ -36,3 +36,8 @@ def dynamodb_client(settings: Settings | None = None):
 def s3_client(settings: Settings | None = None):
     settings = settings or get_settings()
     return boto3.client("s3", **_base_kwargs(settings))
+
+
+def sns_client(settings: Settings | None = None):
+    settings = settings or get_settings()
+    return boto3.client("sns", **_base_kwargs(settings))

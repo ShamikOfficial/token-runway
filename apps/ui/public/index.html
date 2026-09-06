@@ -16,7 +16,7 @@
         <span class="mark">TR</span>
         <div>
           <h1>TokenRunway</h1>
-          <p class="tag">Stage 1 — fuel burn &amp; days of runway</p>
+          <p class="tag">Stage 2 — runway, flight plans &amp; Abandon Takeoff</p>
         </div>
       </div>
       <div id="healthChip" class="chip muted">checking Floci…</div>
@@ -71,6 +71,45 @@
           <button type="submit">Ingest usage</button>
         </form>
         <pre id="lastEvent" class="log"></pre>
+      </section>
+
+      <section class="panel wide">
+        <h2>Flight plan — Clear or Abandon Takeoff</h2>
+        <p class="hint">Estimate fuel before you start. Heavy agent plans on a small tank should ABANDON.</p>
+        <form id="flightForm" class="grid-form">
+          <label>Budget id <input name="budget_id" id="flightBudgetId" required /></label>
+          <label>Flight name <input name="name" value="Weekend agent build" required /></label>
+          <label>Model
+            <select name="model">
+              <option value="gpt-4o-mini">gpt-4o-mini</option>
+              <option value="gpt-4o">gpt-4o</option>
+              <option value="claude-3-5-sonnet-20241022">claude-3-5-sonnet-20241022</option>
+            </select>
+          </label>
+          <label>Task type
+            <select name="task_type">
+              <option value="chat">chat</option>
+              <option value="batch">batch</option>
+              <option value="rag">rag</option>
+              <option value="agent" selected>agent</option>
+              <option value="codegen">codegen</option>
+            </select>
+          </label>
+          <label>Estimated turns <input name="estimated_turns" type="number" min="1" value="12" required /></label>
+          <label>Agent depth <input name="agent_depth" type="number" min="1" value="3" required /></label>
+          <button type="submit">Run pre-flight</button>
+        </form>
+        <div id="takeoffCard" class="takeoff hidden">
+          <div class="status" id="takeoffDecision">—</div>
+          <p class="note" id="takeoffReason"></p>
+          <p id="takeoffCosts" class="mono"></p>
+          <ul id="takeoffSuggestions"></ul>
+        </div>
+        <div class="grid-form" style="margin-top:1rem">
+          <button type="button" id="forecastBtn">30-day forecast</button>
+          <button type="button" id="towerBtn">Tower scan</button>
+        </div>
+        <pre id="forecastLog" class="log"></pre>
       </section>
     </main>
   </div>

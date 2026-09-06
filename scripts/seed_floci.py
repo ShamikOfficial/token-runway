@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Create the DynamoDB tables + S3 bucket TokenRunway expects on Floci.
+Create the DynamoDB tables + S3 bucket + SNS topic TokenRunway expects on Floci.
 
 Safe to re-run — skips things that already exist.
 """
@@ -11,13 +11,12 @@ import sys
 import time
 from pathlib import Path
 
-# Allow running without install: repo root on path
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "packages" / "runway_core"))
 
 from botocore.exceptions import ClientError
 
-from runway_core.aws_clients import dynamodb_client, s3_client
+from runway_core.aws_clients import dynamodb_client, s3_client, sns_client
 from runway_core.settings import get_settings
 
 
@@ -62,6 +61,21 @@ def ensure_usage_table(client, table_name: str) -> None:
     wait_a_sec(f"  created usage table: {table_name}")
 
 
+def ensure_flights_table(client, table_name: str) -> None:
+    existing = client.list_tables().get("TableNames", [])
+    if table_name in existing:
+        print(f"  flights table already there: {table_name}")
+        return
+
+    client.create_table(
+        TableName=table_name,
+        AttributeDefinitions=[{"AttributeName": "flight_id", "AttributeType": "S"}],
+        KeySchema=[{"AttributeName": "flight_id", "KeyType": "HASH"}],
+        BillingMode="PAY_PER_REQUEST",
+    )
+    wait_a_sec(f"  created flights table: {table_name}")
+
+
 def ensure_bucket(client, bucket: str, region: str) -> None:
     try:
         client.head_bucket(Bucket=bucket)
@@ -70,7 +84,6 @@ def ensure_bucket(client, bucket: str, region: str) -> None:
     except ClientError:
         pass
 
-    # us-east-1 hates LocationConstraint; everywhere else needs it
     if region == "us-east-1":
         client.create_bucket(Bucket=bucket)
     else:
@@ -81,20 +94,28 @@ def ensure_bucket(client, bucket: str, region: str) -> None:
     print(f"  created bucket: {bucket}")
 
 
+def ensure_tower_topic(client, topic_name: str) -> None:
+    resp = client.create_topic(Name=topic_name)
+    print(f"  tower SNS topic ready: {resp['TopicArn']}")
+
+
 def main() -> int:
     settings = get_settings()
-    print("Seeding Floci / AWS for TokenRunway Stage 1")
+    print("Seeding Floci / AWS for TokenRunway (Stage 1–2)")
     print(f"  endpoint: {settings.aws_endpoint_url or '(real AWS)'}")
     print(f"  region:   {settings.aws_default_region}")
 
     ddb = dynamodb_client(settings)
     s3 = s3_client(settings)
+    sns = sns_client(settings)
 
     ensure_budgets_table(ddb, settings.runway_budgets_table)
     ensure_usage_table(ddb, settings.runway_usage_table)
+    ensure_flights_table(ddb, settings.runway_flights_table)
     ensure_bucket(s3, settings.runway_raw_bucket, settings.aws_default_region)
+    ensure_tower_topic(sns, settings.runway_tower_topic)
 
-    print("Done. Fuel tanks are ready.")
+    print("Done. Fuel tanks + tower are ready.")
     return 0
 
 

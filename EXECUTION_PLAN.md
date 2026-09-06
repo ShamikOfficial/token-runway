@@ -258,10 +258,10 @@ Do not skip Stage 1–2; Stage 4 can slim if time-boxed (Tailwind + one Headwind
 
 | Stage | Status |
 |-------|--------|
-| 1 Fuel & Runway | **Complete** (Floci compose + ingest + runway + UI + demo) |
-| 2 Flight Plan & Abandon | Ready to start |
-| 3 Emergency Landing | Blocked on 2 |
+| 1 Fuel & Runway | **Complete** |
+| 2 Flight Plan & Abandon | **Complete** (plans, CLEAR/REPLAN/ABANDON, forecast, tower SNS) |
+| 3 Emergency Landing | Ready to start |
 | 4 Weather | Blocked on 3 |
 | 5 Tower polish / CDK | Blocked on 4 |
 
-When you say **go Stage 2**, we add flight plans, Abandon Takeoff, and 30-day forecast.
+When you say **go Stage 3**, we add Emergency Landing, checkpoints, and the black box.
