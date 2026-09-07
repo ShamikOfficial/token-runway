@@ -31,8 +31,8 @@ Built on **Floci** (local AWS) so the same code path demos real AWS skills.
 | IaC | **AWS CDK** (Python) | Stacks that work against Floci *and* AWS |
 | Token helpers (optional) | **tiktoken** / provider usage fields | Prefer provider-reported usage first |
 | Tests | **pytest** + compose Floci | Integration tests on real emulated APIs |
-| UI | **Vite + React** (simple, readable) | Flight / Tower / Weather screens |
-| Charts | **recharts** or plain SVG | Runway + forecast visuals |
+| UI | **Vanilla HTML/CSS/JS** (served by FastAPI) | Flight / Tower / Weather / Fleet on one dashboard |
+| Charts | Plain CSS sparkline | Runway + forecast visuals |
 | Config | **pydantic-settings** + `.env` | Human-readable env names |
 | HTTP client | **httpx** | Adapter calls |
 
@@ -53,33 +53,32 @@ Built on **Floci** (local AWS) so the same code path demos real AWS skills.
 
 ---
 
-## Repo layout (target)
+## Repo layout (as shipped)
 
 ```text
 TokenRunway/
-  docker-compose.yml          # Floci + API (+ UI in later stage)
-  EXECUTION_PLAN.md           # this file
+  docker-compose.yml          # Floci + API
+  EXECUTION_PLAN.md
   README.md
+  LICENSE
   .env.example
-  infra/                      # CDK (Floci endpoint aware)
+  infra/                      # AWS mapping notes (+ CDK sketch guidance)
   apps/
-    api/                      # FastAPI (runs local; Lambda-shaped handlers)
-    ui/                       # Vite React dashboard
+    api/                      # FastAPI
+    ui/public/                # Vanilla dashboard (Stages 1–5 controls)
   packages/
-    runway_core/              # pricing overrides, burn, forecast
-    runway_flight/            # plans, abandon, emergency, holding
-    runway_weather/           # tailwind / headwind playbooks
-    runway_tower/             # alerts, squawk, ground stop
-    runway_adapters/          # ingest + litellm callback + SDK hooks
+    runway_core/              # pricing, burn, flights, weather, fleet, store
+    runway_adapters/          # LiteLLM success_callback → /v1/usage
   scripts/
-    seed_floci.py             # buckets, tables, SNS topics
-    demo_flight.py            # one-command portfolio demo
+    seed_floci.py
+    demo_stage{1-5}.py
+    demo_full.py
   samples/
     pricing_overrides.json
-    flight_plans/
     playbooks/                # tailwind + headwind YAML
 ```
 
+Earlier drafts imagined split packages (`runway_flight`, Vite React). Domain code lives in **`runway_core`**; the UI is intentionally a thin static dashboard so the AWS/Floci story stays the hero.
 ---
 
 ## AWS / Floci map (portfolio proof)
@@ -179,7 +178,7 @@ Every stage must keep: `AWS_ENDPOINT_URL=http://localhost:4566` (or CDK override
 
 ---
 
-### Stage 5 — Tower polish, multi-project, AWS story  
+| 5 Tower polish / portfolio | **Complete** (fleet + persisted ground stop/NOTAMs + adapter + infra notes; CDK optional) |
 **Goal:** Portfolio-ready OSS + clear AWS narrative.
 
 | Deliverable | Detail |
@@ -188,9 +187,9 @@ Every stage must keep: `AWS_ENDPOINT_URL=http://localhost:4566` (or CDK override
 | Ground Stop | Freeze new takeoffs for a project/org |
 | NOTAM | Price/license change notices affecting forecasts |
 | LiteLLM adapter | Drop-in success_callback → ingest (no gateway fork) |
-| CDK | `cdk deploy` documented for Floci endpoint + notes for real AWS |
-| Demo script | `scripts/demo_flight.py` walks Stages 1–4 |
-| README | Architecture diagram, competitor wedge, Floci screenshots |
+| CDK | Infra notes + deploy sketch (`infra/README.md`); full CDK optional follow-up |
+| Demo script | `scripts/demo_full.py` walks Stages 1–5 |
+| README | Architecture, competitor wedge, Floci→AWS path |
 | Afterburner / Slot (light) | Optional burst flag + “schedule when window renews” note |
 
 **Exit criteria:** One demo script + compose = full story; README explains Floci→AWS without code rewrite.
@@ -262,7 +261,7 @@ Do not skip Stage 1–2; Stage 4 can slim if time-boxed (Tailwind + one Headwind
 | 2 Flight Plan & Abandon | **Complete** |
 | 3 Emergency Landing | **Complete** |
 | 4 Weather | **Complete** |
-| 5 Tower polish / fleet | **Complete** (fleet controls + adapter + infra notes) |
+| 5 Tower polish / portfolio | **Complete** (fleet + persisted ground stop/NOTAMs + adapter + infra notes; CDK optional) |
 
 Portfolio demo: `python scripts/demo_full.py` with Compose up.
 

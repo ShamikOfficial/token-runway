@@ -8,7 +8,7 @@ or real AWS (clear the endpoint + use real credentials).
 | Concern | Service |
 |---------|---------|
 | HTTP API | API Gateway HTTP API → Lambda (container or zip) |
-| State | DynamoDB (`budgets`, `usage`, `flights`, `audit`) |
+| State | DynamoDB (`budgets`, `usage`, `flights`, `audit`, `meta`) |
 | Checkpoints | S3 versioned bucket |
 | Tower alerts | SNS topic → email/Slack |
 | Daily runway scan | EventBridge schedule → Lambda `tower/scan` |
@@ -17,10 +17,11 @@ or real AWS (clear the endpoint + use real credentials).
 
 ```bash
 docker compose up --build -d
+python scripts/seed_floci.py   # safe to re-run; creates tables + bucket + topic
 ```
 
 `apps/api/entrypoint.sh` waits for Floci, runs `scripts/seed_floci.py`, then serves FastAPI.
-
+Set `RUNWAY_RELOAD=1` only when you want uvicorn `--reload` against bind-mounted source.
 ## CDK sketch (not required to demo)
 
 A Python CDK app would declare the tables/bucket/topic and set `AWS_ENDPOINT_URL`
