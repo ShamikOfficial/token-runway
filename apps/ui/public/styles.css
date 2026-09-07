@@ -169,7 +169,48 @@ button:hover { filter: brightness(1.08); }
 .mono { font-family: "JetBrains Mono", monospace; font-size: 0.85rem; }
 .takeoff { margin-top: 1rem; padding: 0.9rem; border-radius: 0.7rem; border: 1px solid var(--line); background: #fff; }
 .takeoff .status { font-weight: 700; letter-spacing: 0.04em; }
+.takeoff .status[data-decision="CLEAR"] { background: var(--accent-soft); color: var(--accent); }
+.takeoff .status[data-decision="REPLAN"] { background: #fff3cd; color: var(--warn); }
+.takeoff .status[data-decision="ABANDON"] { background: #fde8e6; color: var(--crit); }
 .takeoff ul { margin: 0.4rem 0 0; padding-left: 1.1rem; color: var(--muted); }
+
+.ops-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.55rem;
+  margin-top: 1rem;
+}
+button.secondary {
+  background: #fff;
+  color: var(--ink);
+  border: 1px solid var(--line);
+}
+button.danger { background: var(--crit); }
+.topup { margin-top: 0.85rem; padding-top: 0.85rem; border-top: 1px dashed var(--line); }
+.hidden { display: none !important; }
+.empty { color: rgba(244, 255, 250, 0.75); }
+
+#statusPill[data-status="OK"],
+#statusPill[data-status="HEALTHY"] { background: rgba(216, 243, 234, 0.25); }
+#statusPill[data-status="WARNING"] { background: rgba(255, 243, 205, 0.28); }
+#statusPill[data-status="CRITICAL"],
+#statusPill[data-status="BINGO"] { background: rgba(253, 232, 230, 0.3); }
+
+.spark { margin-top: 0.85rem; }
+.spark-bars {
+  display: flex;
+  align-items: flex-end;
+  gap: 3px;
+  height: 52px;
+  padding: 0.4rem 0.2rem;
+}
+.spark-bars span {
+  flex: 1;
+  min-width: 4px;
+  background: linear-gradient(180deg, #1a8f72, #0f6e56);
+  border-radius: 2px 2px 0 0;
+  opacity: 0.85;
+}
 
 @media (max-width: 860px) {
   .layout { grid-template-columns: 1fr; }
