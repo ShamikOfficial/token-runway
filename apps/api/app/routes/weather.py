@@ -65,7 +65,7 @@ def weather_plan(body: WeatherPlanBody):
         risk_tags=body.risk_tags,
     )
 
-    events = store.list_usage(body.budget_id, limit=1000)
+    events = store.list_usage(body.budget_id, limit=5000)
     runway = compute_runway(
         limit_usd=float(budget["limit_usd"]),
         events=events,

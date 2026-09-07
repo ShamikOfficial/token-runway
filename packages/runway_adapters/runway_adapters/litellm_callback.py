@@ -42,7 +42,7 @@ def make_runway_callback(
                 completion = int(getattr(usage, "completion_tokens", 0) or 0)
 
             model = kwargs.get("model") or getattr(completion_response, "model", None) or "unknown"
-            client.post(
+            resp = client.post(
                 "/v1/usage",
                 json={
                     "budget_id": budget_id,
@@ -54,8 +54,11 @@ def make_runway_callback(
                     "metadata": {"source": "litellm_callback"},
                 },
             )
-        except Exception:
-            # Never break the user's LLM call because telemetry failed
+            if resp.status_code >= 400:
+                # Never break the user's LLM call — log via print for local demos
+                print(f"[tokenrunway] usage ingest failed: {resp.status_code} {resp.text[:200]}")
+        except Exception as exc:  # noqa: BLE001
+            print(f"[tokenrunway] usage callback error: {exc}")
             return
 
     return _callback

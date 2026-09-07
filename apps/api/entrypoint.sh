@@ -21,4 +21,9 @@ python /app/scripts/seed_floci.py
 
 echo "Starting TokenRunway API..."
 cd /app/apps/api
-exec uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload --reload-dir /app/apps/api/app --reload-dir /app/packages/runway_core
+if [ "${RUNWAY_RELOAD:-0}" = "1" ]; then
+  exec uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload \
+    --reload-dir /app/apps/api/app --reload-dir /app/packages/runway_core
+else
+  exec uvicorn app.main:app --host 0.0.0.0 --port 8000
+fi

@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import logging
+
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel, Field
 
@@ -15,6 +17,7 @@ from runway_core.runway import compute_runway
 from runway_core.settings import get_settings
 from runway_core.store import FuelStore
 
+logger = logging.getLogger(__name__)
 router = APIRouter(tags=["flight-ops"])
 
 
@@ -37,7 +40,7 @@ def _runway_for(store: FuelStore, budget_id: str) -> dict:
     budget = store.get_budget(budget_id)
     if not budget:
         raise HTTPException(status_code=404, detail="Budget not found")
-    events = store.list_usage(budget_id, limit=1000)
+    events = store.list_usage(budget_id, limit=5000)
     return compute_runway(
         limit_usd=float(budget["limit_usd"]),
         events=events,
@@ -124,6 +127,11 @@ def emergency_landing(flight_id: str, body: ProgressBody | None = None):
         raise HTTPException(status_code=404, detail="Flight not found")
     if flight.get("status") in {"LANDED_EMERGENCY", "ABANDON", "COMPLETED"}:
         raise HTTPException(status_code=400, detail=f"Already finished: {flight.get('status')}")
+    if flight.get("status") not in {"IN_FLIGHT", "HOLDING"}:
+        raise HTTPException(
+            status_code=400,
+            detail="Emergency landing only from IN_FLIGHT or HOLDING — start the flight first.",
+        )
 
     runway = _runway_for(store, flight["budget_id"])
     progress = dict(flight.get("progress") or {})
@@ -211,7 +219,8 @@ def resume_flight(flight_id: str, body: ResumeBody | None = None):
     if flight.get("checkpoint_key"):
         try:
             checkpoint = store.read_checkpoint(flight["checkpoint_key"])
-        except Exception:
+        except Exception as exc:
+            logger.warning("Could not read checkpoint %s: %s", flight["checkpoint_key"], exc)
             checkpoint = None
     return {"flight": flight, "checkpoint": checkpoint, "runway": runway}
 

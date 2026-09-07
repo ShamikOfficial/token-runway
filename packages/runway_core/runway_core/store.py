@@ -57,6 +57,7 @@ class FuelStore:
         self.usage = self._db.Table(self.settings.runway_usage_table)
         self.flights = self._db.Table(self.settings.runway_flights_table)
         self.audit = self._db.Table(self.settings.runway_audit_table)
+        self.meta = self._db.Table(self.settings.runway_meta_table)
         self._tower_topic_arn: str | None = None
 
     def create_budget(
@@ -78,8 +79,47 @@ class FuelStore:
             "created_at": _now_iso(),
             "updated_at": _now_iso(),
         }
-        self.budgets.put_item(Item=_to_dynamo(item))
+        try:
+            self.budgets.put_item(
+                Item=_to_dynamo(item),
+                ConditionExpression="attribute_not_exists(budget_id)",
+            )
+        except ClientError as exc:
+            if exc.response.get("Error", {}).get("Code") == "ConditionalCheckFailedException":
+                raise ValueError(f"Budget already exists: {budget_id}") from exc
+            raise
         return item
+
+    def update_budget(
+        self,
+        budget_id: str,
+        *,
+        limit_usd: float | None = None,
+        name: str | None = None,
+        add_limit_usd: float | None = None,
+    ) -> dict:
+        """Top up or rename a fuel tank. Prefer add_limit_usd for refuel after landing."""
+        current = self.get_budget(budget_id)
+        if not current:
+            raise KeyError(f"Unknown budget_id: {budget_id}")
+
+        if add_limit_usd is not None:
+            if add_limit_usd <= 0:
+                raise ValueError("add_limit_usd must be positive")
+            current["limit_usd"] = float(current["limit_usd"]) + float(add_limit_usd)
+        if limit_usd is not None:
+            if limit_usd <= 0:
+                raise ValueError("limit_usd must be positive")
+            current["limit_usd"] = float(limit_usd)
+        if name is not None:
+            name = name.strip()
+            if not name:
+                raise ValueError("name cannot be empty")
+            current["name"] = name
+
+        current["updated_at"] = _now_iso()
+        self.budgets.put_item(Item=_to_dynamo(current))
+        return current
 
     def get_budget(self, budget_id: str) -> dict | None:
         resp = self.budgets.get_item(Key={"budget_id": budget_id})
@@ -87,8 +127,7 @@ class FuelStore:
         return _from_dynamo(item) if item else None
 
     def list_budgets(self, limit: int = 50) -> list[dict]:
-        resp = self.budgets.scan(Limit=limit)
-        return [_from_dynamo(i) for i in resp.get("Items", [])]
+        return self._scan_all(self.budgets, limit=limit)
 
     def record_usage(
         self,
@@ -131,14 +170,15 @@ class FuelStore:
         self._archive_raw_event(event)
         return event
 
-    def list_usage(self, budget_id: str, limit: int = 500) -> list[dict]:
-        resp = self.usage.query(
-            KeyConditionExpression="budget_id = :b",
-            ExpressionAttributeValues={":b": budget_id},
-            Limit=limit,
-            ScanIndexForward=True,
+    def list_usage(self, budget_id: str, limit: int = 5000) -> list[dict]:
+        """Return usage events oldest→newest, paginating past DynamoDB page limits."""
+        return self._query_all(
+            self.usage,
+            key_condition="budget_id = :b",
+            values={":b": budget_id},
+            limit=limit,
+            forward=True,
         )
-        return [_from_dynamo(i) for i in resp.get("Items", [])]
 
     def _archive_raw_event(self, event: dict) -> None:
         """Drop a copy on S3 so we can prove Floci S3 works (and for later audits)."""
@@ -167,16 +207,15 @@ class FuelStore:
         return _from_dynamo(item) if item else None
 
     def list_flights(self, budget_id: str | None = None, limit: int = 50) -> list[dict]:
+        # DynamoDB applies Limit before FilterExpression — page until we fill `limit`.
         if budget_id:
-            # Stage 2: scan + filter is fine at demo scale
-            resp = self.flights.scan(
-                FilterExpression="budget_id = :b",
-                ExpressionAttributeValues={":b": budget_id},
-                Limit=limit,
+            return self._scan_filtered(
+                self.flights,
+                filter_expression="budget_id = :b",
+                values={":b": budget_id},
+                limit=limit,
             )
-        else:
-            resp = self.flights.scan(Limit=limit)
-        return [_from_dynamo(i) for i in resp.get("Items", [])]
+        return self._scan_all(self.flights, limit=limit)
 
     def ensure_tower_topic(self) -> str:
         if self._tower_topic_arn:
@@ -223,13 +262,112 @@ class FuelStore:
         return item
 
     def list_audit(self, budget_id: str, limit: int = 100) -> list[dict]:
-        resp = self.audit.query(
-            KeyConditionExpression="budget_id = :b",
-            ExpressionAttributeValues={":b": budget_id},
-            Limit=limit,
-            ScanIndexForward=False,
+        return self._query_all(
+            self.audit,
+            key_condition="budget_id = :b",
+            values={":b": budget_id},
+            limit=limit,
+            forward=False,
         )
-        return [_from_dynamo(i) for i in resp.get("Items", [])]
+
+    # --- org / fleet state (persists across API restarts) ---
+
+    def get_org_state(self) -> dict:
+        resp = self.meta.get_item(Key={"pk": "ORG"})
+        item = resp.get("Item")
+        if not item:
+            return {"ground_stop": False, "notams": []}
+        data = _from_dynamo(item)
+        return {
+            "ground_stop": bool(data.get("ground_stop")),
+            "ground_stop_reason": data.get("ground_stop_reason"),
+            "ground_stop_since": data.get("ground_stop_since"),
+            "notams": list(data.get("notams") or []),
+        }
+
+    def save_org_state(self, state: dict) -> dict:
+        item = {
+            "pk": "ORG",
+            "ground_stop": bool(state.get("ground_stop")),
+            "ground_stop_reason": state.get("ground_stop_reason"),
+            "ground_stop_since": state.get("ground_stop_since"),
+            "notams": list(state.get("notams") or [])[:50],
+            "updated_at": _now_iso(),
+        }
+        self.meta.put_item(Item=_to_dynamo(item))
+        return self.get_org_state()
+
+    def _query_all(
+        self,
+        table,
+        *,
+        key_condition: str,
+        values: dict,
+        limit: int,
+        forward: bool,
+    ) -> list[dict]:
+        items: list[dict] = []
+        start_key = None
+        while len(items) < limit:
+            kwargs: dict[str, Any] = {
+                "KeyConditionExpression": key_condition,
+                "ExpressionAttributeValues": values,
+                "Limit": min(1000, limit - len(items)),
+                "ScanIndexForward": forward,
+            }
+            if start_key:
+                kwargs["ExclusiveStartKey"] = start_key
+            resp = table.query(**kwargs)
+            items.extend(_from_dynamo(i) for i in resp.get("Items", []))
+            start_key = resp.get("LastEvaluatedKey")
+            if not start_key:
+                break
+        return items
+
+    def _scan_all(self, table, *, limit: int) -> list[dict]:
+        items: list[dict] = []
+        start_key = None
+        while len(items) < limit:
+            kwargs: dict[str, Any] = {"Limit": min(100, limit - len(items))}
+            if start_key:
+                kwargs["ExclusiveStartKey"] = start_key
+            resp = table.scan(**kwargs)
+            items.extend(_from_dynamo(i) for i in resp.get("Items", []))
+            start_key = resp.get("LastEvaluatedKey")
+            if not start_key:
+                break
+        return items
+
+    def _scan_filtered(
+        self,
+        table,
+        *,
+        filter_expression: str,
+        values: dict,
+        limit: int,
+        max_pages: int = 25,
+    ) -> list[dict]:
+        matched: list[dict] = []
+        start_key = None
+        pages = 0
+        while len(matched) < limit and pages < max_pages:
+            kwargs: dict[str, Any] = {
+                "FilterExpression": filter_expression,
+                "ExpressionAttributeValues": values,
+                "Limit": 100,
+            }
+            if start_key:
+                kwargs["ExclusiveStartKey"] = start_key
+            resp = table.scan(**kwargs)
+            pages += 1
+            for raw in resp.get("Items", []):
+                matched.append(_from_dynamo(raw))
+                if len(matched) >= limit:
+                    break
+            start_key = resp.get("LastEvaluatedKey")
+            if not start_key:
+                break
+        return matched
 
     def write_checkpoint(self, checkpoint: dict) -> str:
         flight_id = checkpoint["flight_id"]

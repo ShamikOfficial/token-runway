@@ -42,16 +42,17 @@ def weight_and_balance(
             }
         )
 
+    total_spent = sum(float(r["spent_usd"]) for r in rows)
     for row in rows:
         row["share_of_remaining"] = (
             round(row["remaining_usd"] / total_remaining, 4) if total_remaining > 0 else 0.0
         )
+        row["share_of_spend"] = (
+            round(row["spent_usd"] / total_spent, 4) if total_spent > 0 else 0.0
+        )
 
-    wake = [
-        r
-        for r in rows
-        if total_remaining > 0 and (r["spent_usd"] / total_limit if total_limit else 0) >= warn_share
-    ]
+    # Wake turbulence: one tank burned a disproportionate share of fleet spend
+    wake = [r for r in rows if r["share_of_spend"] >= warn_share]
 
     return {
         "total_limit_usd": round(total_limit, 6),

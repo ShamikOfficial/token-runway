@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from fastapi import APIRouter, HTTPException
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, model_validator
 
 from runway_core.runway import compute_runway
 from runway_core.settings import get_settings
@@ -18,6 +18,20 @@ class CreateBudgetBody(BaseModel):
     budget_id: str | None = None
 
 
+class PatchBudgetBody(BaseModel):
+    """Refuel after Emergency Landing with add_limit_usd, or set an absolute limit."""
+
+    name: str | None = None
+    limit_usd: float | None = Field(default=None, gt=0)
+    add_limit_usd: float | None = Field(default=None, gt=0)
+
+    @model_validator(mode="after")
+    def at_least_one_change(self):
+        if self.name is None and self.limit_usd is None and self.add_limit_usd is None:
+            raise ValueError("Provide name, limit_usd, and/or add_limit_usd")
+        return self
+
+
 def _store() -> FuelStore:
     return FuelStore(get_settings())
 
@@ -25,12 +39,43 @@ def _store() -> FuelStore:
 @router.post("/budgets")
 def create_budget(body: CreateBudgetBody):
     store = _store()
-    budget = store.create_budget(
-        name=body.name,
-        limit_usd=body.limit_usd,
-        currency=body.currency,
-        window_days=body.window_days,
-        budget_id=body.budget_id,
+    try:
+        budget = store.create_budget(
+            name=body.name,
+            limit_usd=body.limit_usd,
+            currency=body.currency,
+            window_days=body.window_days,
+            budget_id=body.budget_id,
+        )
+    except ValueError as exc:
+        raise HTTPException(status_code=409, detail=str(exc)) from exc
+    return budget
+
+
+@router.patch("/budgets/{budget_id}")
+def patch_budget(budget_id: str, body: PatchBudgetBody):
+    store = _store()
+    try:
+        budget = store.update_budget(
+            budget_id,
+            name=body.name,
+            limit_usd=body.limit_usd,
+            add_limit_usd=body.add_limit_usd,
+        )
+    except KeyError as exc:
+        raise HTTPException(status_code=404, detail="Budget not found") from exc
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+
+    store.append_audit(
+        budget_id=budget_id,
+        action="BUDGET_TOP_UP" if body.add_limit_usd else "BUDGET_UPDATED",
+        detail={
+            "add_limit_usd": body.add_limit_usd,
+            "limit_usd": body.limit_usd,
+            "name": body.name,
+            "new_limit_usd": budget["limit_usd"],
+        },
     )
     return budget
 
@@ -56,7 +101,7 @@ def get_runway(budget_id: str):
     if not budget:
         raise HTTPException(status_code=404, detail="Budget not found")
 
-    events = store.list_usage(budget_id, limit=1000)
+    events = store.list_usage(budget_id, limit=5000)
     runway = compute_runway(
         limit_usd=float(budget["limit_usd"]),
         events=events,

@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Stage 3 E2E: start → burn → emergency land → checkpoint → top-up → resume."""
+"""Stage 3 E2E: start → burn → emergency land → top-up → resume same flight."""
 
 from __future__ import annotations
 
@@ -40,15 +40,11 @@ def main() -> int:
         ).json()
         fid = plan["flight_id"]
         print("planned:", plan["takeoff"]["decision"], fid)
-        if plan["takeoff"]["decision"] not in {"CLEAR", "REPLAN"}:
-            # Force a clear-able tiny chat on mini
-            print("unexpected takeoff; continuing if startable")
 
         started = client.post(f"/v1/flights/{fid}/start")
         started.raise_for_status()
         print("started:", started.json()["status"])
 
-        # Burn most of the tank
         for i in range(6):
             r = client.post(
                 "/v1/usage",
@@ -84,7 +80,6 @@ def main() -> int:
         cp.raise_for_status()
         print("checkpoint reason:", cp.json()["checkpoint"]["reason"])
 
-        # Usage while landed should fail
         blocked = client.post(
             "/v1/usage",
             json={
@@ -99,41 +94,49 @@ def main() -> int:
             print("FAIL: expected 409 while landed", file=sys.stderr)
             return 1
 
-        # Top up via a new bigger budget is awkward — instead bump by creating
-        # fresh budget and transferring story: for demo, create rich tank + new flight resume path
-        # Simpler: add spend-free headroom by using a larger limit budget for resume story.
-        rich = client.post("/v1/budgets", json={"name": "refuel tank", "limit_usd": 25.0}).json()
-        rid = rich["budget_id"]
-        plan2 = client.post(
-            "/v1/flights/plan",
-            json={
-                "budget_id": rid,
-                "name": "Resume practice",
-                "model": "gpt-4o-mini",
-                "task_type": "chat",
-                "estimated_turns": 2,
-                "agent_depth": 1,
-            },
-        ).json()
-        fid2 = plan2["flight_id"]
-        client.post(f"/v1/flights/{fid2}/start").raise_for_status()
+        # Cap the tank at current spend so usable fuel is gone (bingo gate for resume)
+        runway = client.get(f"/v1/budgets/{bid}/runway").json()["runway"]
+        if float(runway["usable_usd"]) > 0:
+            cap = client.patch(
+                f"/v1/budgets/{bid}",
+                json={"limit_usd": max(float(runway["spent_usd"]), 0.01)},
+            )
+            cap.raise_for_status()
+            print("capped tank to spent so resume needs refuel")
+
+        dry = client.post(f"/v1/flights/{fid}/resume")
+        if dry.status_code != 400:
+            print("FAIL: expected 400 resume before top-up", dry.status_code, dry.text, file=sys.stderr)
+            return 1
+        print("resume blocked until refuel:", dry.json().get("detail"))
+
+        topped = client.patch(f"/v1/budgets/{bid}", json={"add_limit_usd": 20.0})
+        topped.raise_for_status()
+        print("topped limit_usd:", topped.json()["limit_usd"])
+
+        resumed = client.post(f"/v1/flights/{fid}/resume", json={"note": "Refueled — continuing"})
+        resumed.raise_for_status()
+        assert resumed.json()["flight"]["flight_id"] == fid
+        print("resumed same flight:", resumed.json()["flight"]["status"])
+
         hold = client.post(
-            f"/v1/flights/{fid2}/hold",
+            f"/v1/flights/{fid}/hold",
             json={"note": "Waiting on human", "step": "paused"},
         )
         hold.raise_for_status()
         print("holding:", hold.json()["flight"]["status"])
-        resumed = client.post(f"/v1/flights/{fid2}/resume")
-        resumed.raise_for_status()
-        print("resumed:", resumed.json()["flight"]["status"])
+        from_hold = client.post(f"/v1/flights/{fid}/resume")
+        from_hold.raise_for_status()
+        print("resumed from hold:", from_hold.json()["flight"]["status"])
 
         box = client.get(f"/v1/budgets/{bid}/blackbox").json()
-        print("blackbox events on landing tank:", len(box["events"]))
-        if not box["events"]:
-            print("FAIL: expected audit events", file=sys.stderr)
+        print("blackbox events:", len(box["events"]))
+        actions = {e["action"] for e in box["events"]}
+        if "EMERGENCY_LANDING" not in actions or "BUDGET_TOP_UP" not in actions:
+            print("FAIL: expected EMERGENCY_LANDING + BUDGET_TOP_UP in black box", actions, file=sys.stderr)
             return 1
 
-        print("\nStage 3 E2E OK — Emergency Landing + Holding + Black Box.")
+        print("\nStage 3 E2E OK — Emergency Landing + top-up + same-flight resume + Holding.")
         return 0
 
 

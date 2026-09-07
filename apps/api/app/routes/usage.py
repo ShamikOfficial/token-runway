@@ -70,7 +70,7 @@ def ingest_usage(body: UsageBody):
     # Soft gate: refuse the call if it would pierce bingo while in-flight
     if flight and flight.get("status") == "IN_FLIGHT":
         budget = store.get_budget(body.budget_id)
-        events = store.list_usage(body.budget_id, limit=1000)
+        events = store.list_usage(body.budget_id, limit=5000)
         runway = compute_runway(
             limit_usd=float(budget["limit_usd"]),
             events=events,
