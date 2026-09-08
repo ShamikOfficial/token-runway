@@ -1,4 +1,4 @@
-# Infra notes (Stage 5)
+# Infra notes
 
 TokenRunway is written so the same boto3 calls work against **Floci** (`AWS_ENDPOINT_URL`)
 or real AWS (clear the endpoint + use real credentials).

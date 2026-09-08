@@ -253,15 +253,7 @@ Do not skip Stage 1–2; Stage 4 can slim if time-boxed (Tailwind + one Headwind
 
 ---
 
-## Status
+## Note
 
-| Stage | Status |
-|-------|--------|
-| 1 Fuel & Runway | **Complete** |
-| 2 Flight Plan & Abandon | **Complete** |
-| 3 Emergency Landing | **Complete** |
-| 4 Weather | **Complete** |
-| 5 Tower polish / portfolio | **Complete** (fleet + persisted ground stop/NOTAMs + adapter + infra notes; CDK optional) |
-
-Portfolio demo: `python scripts/demo_full.py` with Compose up.
+This document is the original design / rollout narrative. The shipped product is a single Compose demo — see root `README.md`. Script names like `demo_stage1.py` are historical labels for feature demos, not product “stages.”
 

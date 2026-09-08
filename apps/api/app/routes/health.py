@@ -10,7 +10,6 @@ def health():
     settings = get_settings()
     return {
         "ok": True,
-        "stage": 5,
         "env": settings.runway_env,
         "floci": settings.using_floci,
         "endpoint": settings.aws_endpoint_url,

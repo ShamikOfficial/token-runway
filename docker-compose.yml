@@ -27,7 +27,7 @@ services:
       RUNWAY_RAW_BUCKET: tokenrunway-raw
       RUNWAY_TOWER_TOPIC: tokenrunway-tower
       RUNWAY_PRICING_OVERRIDES: /app/samples/pricing_overrides.json
-      RUNWAY_EWMA_ALPHA: "0.3"
+      RUNWAY_EWMA_ALPHA: "0.5"
       RUNWAY_BINGO_RESERVE_PCT: "0.10"
     volumes:
       - ./samples:/app/samples:ro

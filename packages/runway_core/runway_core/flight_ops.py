@@ -1,7 +1,7 @@
 """
 In-flight ops — turbulence, Emergency Landing, Holding Pattern, resume.
 
-Stage 3: keep work recoverable when fuel dies mid-flight.
+Keep work recoverable when fuel dies mid-flight.
 """
 
 from __future__ import annotations

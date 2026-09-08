@@ -46,7 +46,7 @@ def _from_dynamo(value: Any) -> Any:
 
 
 class FuelStore:
-    """Budgets + usage + flight plans. Stage 1 fuel, Stage 2 takeoff planning."""
+    """Budgets + usage + flight plans."""
 
     def __init__(self, settings: Settings | None = None):
         self.settings = settings or get_settings()

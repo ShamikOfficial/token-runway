@@ -34,7 +34,7 @@ class Settings(BaseSettings):
     runway_tower_topic: str = "tokenrunway-tower"
 
     runway_pricing_overrides: str = str(_REPO_ROOT / "samples" / "pricing_overrides.json")
-    runway_ewma_alpha: float = 0.3
+    runway_ewma_alpha: float = 0.5
     runway_bingo_reserve_pct: float = 0.10
 
     @property

@@ -25,8 +25,6 @@ def main() -> int:
         health = client.get("/health")
         health.raise_for_status()
         print("health:", health.json())
-        assert health.json().get("stage") >= 2
-
         budget = client.post(
             "/v1/budgets",
             json={"name": "Stage2 tiny tank", "limit_usd": 2.0},

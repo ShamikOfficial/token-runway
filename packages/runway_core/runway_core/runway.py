@@ -2,9 +2,10 @@
 
 from __future__ import annotations
 
+from datetime import datetime, timezone
 from typing import Any
 
-from runway_core.burn import ewma_daily_burn, spend_by_day, total_spend
+from runway_core.burn import effective_daily_burn, spend_by_day, total_spend
 
 
 def compute_runway(
@@ -15,12 +16,11 @@ def compute_runway(
     bingo_reserve_pct: float = 0.10,
 ) -> dict[str, Any]:
     """
-    Plain English:
     - spent so far from events
     - remaining = limit - spent
-    - usable = remaining after bingo reserve (we keep a slice for emergencies later)
-    - daily_burn = EWMA of per-day spend
-    - days_remaining = usable / daily_burn
+    - usable = remaining after bingo reserve
+    - daily_burn = current burn rate ($/day), reacts when usage speeds up
+    - days_remaining = usable / daily_burn  (goes down when burn goes up)
     """
     spent = total_spend(events)
     remaining = max(limit_usd - spent, 0.0)
@@ -28,7 +28,8 @@ def compute_runway(
     usable = max(remaining - bingo_reserve, 0.0)
 
     daily = spend_by_day(events)
-    daily_burn = ewma_daily_burn(daily, alpha=ewma_alpha)
+    today = datetime.now(timezone.utc).date()
+    daily_burn = effective_daily_burn(daily, alpha=ewma_alpha, as_of=today)
 
     days_remaining: float | None
     status: str
@@ -37,7 +38,7 @@ def compute_runway(
     if spent <= 0 or daily_burn is None:
         days_remaining = None
         status = "NO_BURN_YET"
-        note = "No usage yet — post some /v1/usage events to estimate runway."
+        note = "No usage yet — log usage to estimate days left at this burn rate."
     elif daily_burn <= 0:
         days_remaining = None
         status = "ZERO_BURN"
@@ -45,18 +46,18 @@ def compute_runway(
     elif usable <= 0:
         days_remaining = 0.0
         status = "BINGO_OR_EMPTY"
-        note = "You're at or below bingo fuel. Top up or stop burning."
+        note = "At or below bingo fuel. Top up or stop burning."
     else:
         days_remaining = round(usable / daily_burn, 2)
         if days_remaining < 3:
             status = "CRITICAL"
-            note = "Less than ~3 days of usable fuel at current burn."
+            note = f"Less than ~3 days left at ${daily_burn:.4f}/day."
         elif days_remaining < 14:
             status = "WARNING"
-            note = "Under two weeks of usable fuel — plan a top-up or cut burn."
+            note = f"Under two weeks left at ${daily_burn:.4f}/day — top up or cut burn."
         else:
             status = "HEALTHY"
-            note = "Runway looks comfortable at the current burn rate."
+            note = f"About {days_remaining:g} days of usable fuel left at ${daily_burn:.4f}/day."
 
     return {
         "limit_usd": round(limit_usd, 6),

@@ -1,7 +1,7 @@
 """
 Weather — Tailwind (save) vs Headwind (spend for safety).
 
-Stage 4: make the cost ↔ safety tradeoff visible before takeoff.
+Make the cost ↔ safety tradeoff visible before takeoff.
 """
 
 from __future__ import annotations

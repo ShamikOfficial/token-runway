@@ -1,4 +1,4 @@
-"""Stage 3 flight lifecycle — start, hold, emergency land, resume, black box."""
+"""Flight lifecycle — start, hold, emergency land, resume, black box."""
 
 from __future__ import annotations
 

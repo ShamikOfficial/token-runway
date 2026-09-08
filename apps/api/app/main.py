@@ -18,7 +18,7 @@ UI_DIR = Path(__file__).resolve().parents[2] / "ui" / "public"
 app = FastAPI(
     title="TokenRunway",
     description="LLM flight control plane — fuel, landing, weather, fleet gates (Floci / AWS).",
-    version="0.5.0",
+    version="1.0.0",
 )
 
 app.add_middleware(
@@ -45,7 +45,7 @@ def dashboard():
     index = UI_DIR / "index.html"
     if index.exists():
         return FileResponse(index)
-    return {"service": "TokenRunway", "stage": 5, "docs": "/docs"}
+    return {"service": "TokenRunway", "docs": "/docs"}
 
 
 if UI_DIR.exists():

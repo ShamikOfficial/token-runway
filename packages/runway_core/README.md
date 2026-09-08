@@ -1,1 +1,5 @@
-# runway-core package notes live in the root README (Stage 1).
+# runway_core
+
+Domain library for TokenRunway: pricing, burn/runway math, flights, weather, fleet, and Floci/AWS store helpers.
+
+See the root `README.md` for product docs and quick start.

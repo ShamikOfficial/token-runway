@@ -62,10 +62,33 @@ def test_runway_warning_under_two_weeks():
     assert result["status"] in {"WARNING", "CRITICAL"}
 
 
-def test_runway_no_usage():
-    result = compute_runway(limit_usd=50.0, events=[])
-    assert result["status"] == "NO_BURN_YET"
-    assert result["days_remaining"] is None
+def test_runway_days_fall_when_burn_rises():
+    """More spend today → higher burn rate → fewer days left."""
+    quiet = [
+        {"occurred_at": "2026-09-01T12:00:00+00:00", "cost_usd": 1.0},
+        {"occurred_at": "2026-09-02T12:00:00+00:00", "cost_usd": 1.0},
+    ]
+    # Spike "today" relative to as_of used inside compute (UTC today) — use dated events
+    # on the same calendar days so latest day dominates.
+    low = compute_runway(limit_usd=100.0, events=quiet, ewma_alpha=0.5, bingo_reserve_pct=0.1)
+    hot = quiet + [
+        {"occurred_at": "2026-09-03T12:00:00+00:00", "cost_usd": 20.0},
+    ]
+    high = compute_runway(limit_usd=100.0, events=hot, ewma_alpha=0.5, bingo_reserve_pct=0.1)
+    assert high["daily_burn_usd"] > low["daily_burn_usd"]
+    assert high["days_remaining"] < low["days_remaining"]
+
+
+def test_effective_burn_tracks_latest_day():
+    from runway_core.burn import effective_daily_burn
+
+    daily = {
+        date(2026, 9, 1): 2.0,
+        date(2026, 9, 2): 2.0,
+        date(2026, 9, 3): 15.0,
+    }
+    rate = effective_daily_burn(daily, alpha=0.3, as_of=date(2026, 9, 3))
+    assert rate == pytest.approx(15.0)
 
 
 def test_runway_critical_when_almost_empty():

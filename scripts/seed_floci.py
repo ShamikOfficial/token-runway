@@ -137,7 +137,7 @@ def ensure_tower_topic(client, topic_name: str) -> None:
 
 def main() -> int:
     settings = get_settings()
-    print("Seeding Floci / AWS for TokenRunway (Stages 1–5)")
+    print("Seeding Floci / AWS for TokenRunway")
     print(f"  endpoint: {settings.aws_endpoint_url or '(real AWS)'}")
     print(f"  region:   {settings.aws_default_region}")
 

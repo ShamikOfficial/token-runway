@@ -28,7 +28,8 @@ pytestmark = pytest.mark.skipif(not _api_up(), reason="API not running on :8000"
 def test_health_reports_floci():
     data = httpx.get(f"{BASE}/health", timeout=10.0).json()
     assert data["ok"] is True
-    assert data["stage"] >= 1
+    assert data["ok"] is True
+    assert "floci" in data
     assert data["floci"] is True
 
 

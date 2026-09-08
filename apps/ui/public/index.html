@@ -3,11 +3,11 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>TokenRunway — LLM flight control</title>
+  <title>TokenRunway</title>
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,400;0,9..40,600;0,9..40,700;1,9..40,400&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet" />
-  <link rel="stylesheet" href="/static/styles.css" />
+  <link rel="stylesheet" href="/static/styles.css?v=8" />
 </head>
 <body>
   <div class="sky">
@@ -16,156 +16,135 @@
         <span class="mark">TR</span>
         <div>
           <h1>TokenRunway</h1>
-          <p class="tag">LLM flight control — fuel, landings, weather &amp; fleet</p>
+          <p class="tag">How many days of LLM fuel do you have left?</p>
         </div>
       </div>
-      <div id="healthChip" class="chip muted">checking Floci…</div>
+      <div id="healthChip" class="chip muted">checking…</div>
     </header>
 
-    <main class="layout">
-      <section class="panel">
-        <h2>Open a fuel tank</h2>
-        <p class="hint">Create a budget, log usage, then top up after an emergency landing.</p>
-        <form id="budgetForm" class="stack">
-          <label>Name <input name="name" value="Weekend build" required /></label>
-          <label>Limit (USD) <input name="limit_usd" type="number" step="0.01" min="1" value="50" required /></label>
-          <button type="submit">Create budget</button>
-        </form>
-        <form id="topUpForm" class="stack topup">
-          <label>Top up (USD) <input name="add_limit_usd" type="number" step="0.01" min="0.01" value="20" required /></label>
-          <button type="submit" class="secondary">Refuel selected tank</button>
-        </form>
-        <div id="budgetList" class="list"></div>
-      </section>
+    <div id="statusMsg" class="status-msg" role="status">Ready — pick or create a fuel tank.</div>
 
-      <section class="panel accent">
-        <h2>Runway</h2>
-        <div id="runwayEmpty" class="empty">Pick or create a budget to see runway.</div>
+    <div class="shell">
+      <!-- Always-visible half: runway + forecast -->
+      <aside class="runway-dock panel accent" aria-live="polite">
+        <div class="dock-head">
+          <h2>Runway</h2>
+          <button type="button" id="forecastBtn" class="ghost">Refresh forecast</button>
+        </div>
+
+        <div id="runwayEmpty" class="empty">Pick a fuel tank to see days remaining.</div>
         <div id="runwayCard" class="runway hidden">
           <div class="big" id="daysLeft">—</div>
-          <div class="label" id="daysLabel">days remaining</div>
+          <div class="label" id="daysLabel">days of usable fuel left at this burn rate</div>
           <div class="status" id="statusPill">—</div>
           <p class="note" id="runwayNote"></p>
-          <dl class="metrics">
+          <dl class="metrics metrics-simple">
             <div><dt>Limit</dt><dd id="mLimit">—</dd></div>
             <div><dt>Spent</dt><dd id="mSpent">—</dd></div>
-            <div><dt>Remaining</dt><dd id="mRemain">—</dd></div>
-            <div><dt>Daily burn</dt><dd id="mBurn">—</dd></div>
-            <div><dt>Bingo reserve</dt><dd id="mBingo">—</dd></div>
-            <div><dt>Events</dt><dd id="mEvents">—</dd></div>
+            <div><dt>Left</dt><dd id="mRemain">—</dd></div>
+            <div><dt>Burn / day</dt><dd id="mBurn">—</dd></div>
           </dl>
         </div>
-      </section>
 
-      <section class="panel wide">
-        <h2>Log usage</h2>
-        <form id="usageForm" class="grid-form">
-          <label>Budget id <input name="budget_id" id="usageBudgetId" required placeholder="select a budget" /></label>
-          <label>Flight id <input name="flight_id" id="usageFlightId" placeholder="optional — bind to active flight" /></label>
-          <label>Model
-            <select name="model">
-              <option value="gpt-4o-mini">gpt-4o-mini</option>
-              <option value="gpt-4o">gpt-4o</option>
-              <option value="claude-3-5-sonnet-20241022">claude-3-5-sonnet-20241022</option>
-              <option value="my-company/gpt-4o-license">my-company/gpt-4o-license (override)</option>
-            </select>
-          </label>
-          <label>Prompt tokens <input name="prompt_tokens" type="number" min="0" value="1200" required /></label>
-          <label>Completion tokens <input name="completion_tokens" type="number" min="0" value="400" required /></label>
-          <label>Project id <input name="project_id" value="demo" /></label>
-          <button type="submit">Ingest usage</button>
-        </form>
-        <pre id="lastEvent" class="log"></pre>
-      </section>
-
-      <section class="panel wide">
-        <h2>Flight plan — Clear or Abandon Takeoff</h2>
-        <p class="hint">Estimate fuel before you start. Heavy agent plans on a small tank should ABANDON.</p>
-        <form id="flightForm" class="grid-form">
-          <label>Budget id <input name="budget_id" id="flightBudgetId" required /></label>
-          <label>Flight name <input name="name" value="Weekend agent build" required /></label>
-          <label>Model
-            <select name="model">
-              <option value="gpt-4o-mini">gpt-4o-mini</option>
-              <option value="gpt-4o">gpt-4o</option>
-              <option value="claude-3-5-sonnet-20241022">claude-3-5-sonnet-20241022</option>
-            </select>
-          </label>
-          <label>Task type
-            <select name="task_type">
-              <option value="chat">chat</option>
-              <option value="batch">batch</option>
-              <option value="rag">rag</option>
-              <option value="agent" selected>agent</option>
-              <option value="codegen">codegen</option>
-            </select>
-          </label>
-          <label>Estimated turns <input name="estimated_turns" type="number" min="1" value="12" required /></label>
-          <label>Agent depth <input name="agent_depth" type="number" min="1" value="3" required /></label>
-          <button type="submit">Run pre-flight</button>
-        </form>
-        <div id="takeoffCard" class="takeoff hidden">
-          <div class="status" id="takeoffDecision">—</div>
-          <p class="note" id="takeoffReason"></p>
-          <p id="takeoffCosts" class="mono"></p>
-          <ul id="takeoffSuggestions"></ul>
+        <div class="forecast-block">
+          <h3>30-day forecast</h3>
+          <p id="forecastSummary" class="forecast-summary">Log usage, then forecast appears here.</p>
+          <div id="forecastLegend" class="forecast-legend" hidden></div>
+          <div id="forecastSpark" class="spark chart-wrap" aria-hidden="true"></div>
+          <p id="forecastHover" class="forecast-hover" aria-live="polite"></p>
+          <dl class="metrics metrics-simple forecast-metrics">
+            <div><dt>p50 spend</dt><dd id="fP50">—</dd></div>
+            <div><dt>p90 spend</dt><dd id="fP90">—</dd></div>
+            <div><dt>Fits tank?</dt><dd id="fFit">—</dd></div>
+          </dl>
         </div>
-        <div class="ops-row">
-          <button type="button" id="startBtn" class="secondary">Start</button>
-          <button type="button" id="holdBtn" class="secondary">Hold</button>
-          <button type="button" id="landBtn" class="danger">Emergency land</button>
-          <button type="button" id="resumeBtn" class="secondary">Resume</button>
-          <button type="button" id="forecastBtn">30-day forecast</button>
-          <button type="button" id="towerBtn">Tower scan</button>
-          <button type="button" id="blackboxBtn" class="secondary">Black box</button>
-        </div>
-        <div id="forecastSpark" class="spark hidden" aria-hidden="true"></div>
-        <pre id="forecastLog" class="log"></pre>
-      </section>
+      </aside>
 
-      <section class="panel wide">
-        <h2>Weather — Tailwind / Headwind / Crosswind</h2>
-        <p class="hint">Same plan with efficiency rules (Tailwind) and safety surcharges (Headwind).</p>
-        <form id="weatherForm" class="grid-form">
-          <label>Budget id <input name="budget_id" id="weatherBudgetId" required /></label>
-          <label>Model
-            <select name="model">
-              <option value="gpt-4o">gpt-4o</option>
-              <option value="gpt-4o-mini">gpt-4o-mini</option>
-              <option value="claude-3-5-sonnet-20241022">claude-3-5-sonnet-20241022</option>
+      <!-- Scrollable half: controls -->
+      <main class="controls">
+        <section class="panel tank-bar">
+          <label class="tank-label">
+            Fuel tank
+            <select id="tankSelect">
+              <option value="">Create a tank below…</option>
             </select>
           </label>
-          <label>Task type
-            <select name="task_type">
-              <option value="agent" selected>agent</option>
-              <option value="rag">rag</option>
-              <option value="codegen">codegen</option>
-              <option value="chat">chat</option>
-            </select>
-          </label>
-          <label>Turns <input name="estimated_turns" type="number" min="1" value="10" required /></label>
-          <label>Depth <input name="agent_depth" type="number" min="1" value="3" required /></label>
-          <label>Risk tags <input name="risk_tags" value="full_fs" placeholder="comma-separated" /></label>
-          <button type="submit">Weather plan</button>
-          <button type="button" id="playbooksBtn" class="secondary">List playbooks</button>
-        </form>
-        <pre id="weatherLog" class="log"></pre>
-      </section>
+          <div class="inline-form">
+            <input id="newTankName" value="Demo tank" required placeholder="Name" />
+            <input id="newTankLimit" type="number" step="1" min="1" value="50" required />
+            <button type="button" id="newTankBtn">New tank</button>
+          </div>
+        </section>
 
-      <section class="panel wide">
-        <h2>Fleet — Weight &amp; Balance / Ground Stop / NOTAMs</h2>
-        <div class="ops-row">
-          <button type="button" id="wbBtn">Weight &amp; balance</button>
-          <button type="button" id="gsOnBtn" class="danger">Ground stop ON</button>
-          <button type="button" id="gsOffBtn" class="secondary">Ground stop OFF</button>
-          <button type="button" id="notamBtn" class="secondary">Issue NOTAM</button>
-          <button type="button" id="notamListBtn" class="secondary">List NOTAMs</button>
-        </div>
-        <p id="fleetStatus" class="hint"></p>
-        <pre id="fleetLog" class="log"></pre>
-      </section>
-    </main>
+        <section class="panel">
+          <h2>1. Burn some fuel</h2>
+          <p class="hint">Watch the runway panel update when you log.</p>
+          <div class="row-form">
+            <label>Model
+              <select id="usageModel">
+                <option value="gpt-4o-mini">gpt-4o-mini (cheap)</option>
+                <option value="gpt-4o">gpt-4o</option>
+                <option value="claude-3-5-sonnet-20241022">claude-3-5-sonnet</option>
+              </select>
+            </label>
+            <label>Prompt tokens <input id="usagePrompt" type="number" min="0" value="1200" /></label>
+            <label>Completion <input id="usageCompletion" type="number" min="0" value="400" /></label>
+            <button type="button" id="usageBtn">Log usage</button>
+          </div>
+        </section>
+
+        <section class="panel">
+          <h2>2. Plan a flight</h2>
+          <p class="hint">CLEAR / REPLAN / ABANDON before you spend.</p>
+          <div class="row-form">
+            <label>Task
+              <select id="flightTask">
+                <option value="chat">chat</option>
+                <option value="agent" selected>agent (heavy)</option>
+                <option value="rag">rag</option>
+              </select>
+            </label>
+            <label>Model
+              <select id="flightModel">
+                <option value="gpt-4o-mini">gpt-4o-mini</option>
+                <option value="gpt-4o" selected>gpt-4o</option>
+              </select>
+            </label>
+            <label>Turns <input id="flightTurns" type="number" min="1" value="12" /></label>
+            <button type="button" id="flightBtn">Pre-flight check</button>
+          </div>
+          <div id="takeoffCard" class="takeoff hidden">
+            <div class="status" id="takeoffDecision">—</div>
+            <p class="note" id="takeoffReason"></p>
+            <p id="takeoffCosts" class="mono"></p>
+          </div>
+        </section>
+
+        <section class="panel">
+          <h2>3. Fly</h2>
+          <p class="hint">Start → land if fuel dies → refuel → resume.</p>
+          <div class="ops-row">
+            <button type="button" id="startBtn">Start</button>
+            <button type="button" id="landBtn" class="danger">Emergency land</button>
+            <button type="button" id="resumeBtn" class="secondary">Resume</button>
+          </div>
+          <div class="inline-form refuel">
+            <input id="refuelAmount" type="number" step="1" min="1" value="20" />
+            <button type="button" id="refuelBtn" class="secondary">Refuel tank</button>
+          </div>
+        </section>
+
+        <details class="panel more">
+          <summary>Advanced (weather &amp; fleet)</summary>
+          <div class="ops-row">
+            <button type="button" id="weatherBtn" class="secondary">Weather plan</button>
+            <button type="button" id="gsToggleBtn" class="secondary">Toggle ground stop</button>
+          </div>
+          <pre id="moreLog" class="log"></pre>
+        </details>
+      </main>
+    </div>
   </div>
-  <script src="/static/app.js"></script>
+  <script src="/static/app.js?v=8"></script>
 </body>
 </html>

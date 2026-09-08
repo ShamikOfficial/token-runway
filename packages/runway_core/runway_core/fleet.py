@@ -1,5 +1,5 @@
 """
-Fleet controls — Weight & Balance, Ground Stop, NOTAMs (Stage 5).
+Fleet controls — Weight & Balance, Ground Stop, NOTAMs.
 """
 
 from __future__ import annotations

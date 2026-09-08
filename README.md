@@ -4,13 +4,11 @@
 
 Local AWS via **[Floci](https://floci.io/)** · Public repo: **https://github.com/ShamikOfficial/token-runway** · License: MIT
 
-Stages **1–5** ship as a working Compose demo. See `EXECUTION_PLAN.md` for the product narrative.
-
 ---
 
 ## Why this exists
 
-Gateways and dashboards show **what you spent**. TokenRunway answers **whether you’ll finish** — and how to land if you won’t — using aviation language (bingo fuel, abandon takeoff, emergency landing, weather).
+Gateways show **what you spent**. TokenRunway answers **how many days of usable fuel you have left at the current burn rate** — and how to land if you won’t finish.
 
 Built on Floci so the same **boto3** path demos DynamoDB, S3, and SNS locally without rewriting for AWS later.
 
@@ -32,7 +30,7 @@ python scripts/demo_full.py
 
 ---
 
-## Architecture (what actually ships)
+## Architecture
 
 ```text
 Browser / demos
@@ -41,21 +39,21 @@ Browser / demos
          → Floci :4566  (DynamoDB · S3 · SNS)
 
 Optional: packages/runway_adapters  (LiteLLM success_callback → POST /v1/usage)
-UI: vanilla HTML/CSS/JS under apps/ui/public (served by the API)
-Infra notes: infra/README.md  (CDK sketch — not required for the demo)
+UI: vanilla HTML/CSS/JS under apps/ui/public
+Infra notes: infra/README.md
 ```
 
 ---
 
-## Demo map
+## Demo scripts
 
 | Script | What it proves |
 |--------|----------------|
 | `demo_stage1.py` | Usage ingest + runway days on Floci |
 | `demo_stage2.py` | Abandon Takeoff → CLEAR + 30-day forecast + tower |
-| `demo_stage3.py` | Emergency Landing → **budget top-up** → **same-flight resume** + Holding + Black Box |
+| `demo_stage3.py` | Emergency Landing → budget top-up → same-flight resume |
 | `demo_stage4.py` | Tailwind / Headwind / Crosswind |
-| `demo_stage5.py` | Weight & Balance, Ground Stop (persisted), NOTAMs |
+| `demo_stage5.py` | Weight & Balance, Ground Stop, NOTAMs |
 | `demo_full.py` | Runs all of the above |
 | `verify_floci.py` | DynamoDB + S3 proof |
 
@@ -63,11 +61,11 @@ Infra notes: infra/README.md  (CDK sketch — not required for the demo)
 
 ## Features
 
-- **Fuel & Runway** — LiteLLM pricing + license overrides, EWMA burn, bingo reserve, `PATCH /v1/budgets/{id}` top-up  
+- **Fuel & Runway** — LiteLLM pricing + license overrides, burn rate ($/day), **days of usable fuel left at this rate**, bingo reserve, budget top-up  
 - **Flight plans** — task growth curves, CLEAR / REPLAN / ABANDON  
 - **In flight** — start, hold, emergency landing checkpoints (S3), black box audit, resume after refuel  
 - **Weather** — Tailwind playbooks, Headwind risk surcharges, diversion / jettison hints  
-- **Fleet** — weight & balance, ground stop + NOTAMs persisted in DynamoDB meta  
+- **Fleet** — weight & balance, ground stop + NOTAMs (DynamoDB meta)  
 - **Adapter** — optional LiteLLM success callback (`packages/runway_adapters`)
 
 ---
@@ -86,12 +84,10 @@ With Compose up, live tests also run against `:8000`.
 ## Curl taste
 
 ```bash
-# Create a tank
 curl -s -X POST http://localhost:8000/v1/budgets \
   -H 'content-type: application/json' \
-  -d '{"name":"demo","limit_usd":25}' 
+  -d '{"name":"demo","limit_usd":25}'
 
-# Top up after landing
 curl -s -X PATCH http://localhost:8000/v1/budgets/$BUDGET_ID \
   -H 'content-type: application/json' \
   -d '{"add_limit_usd":20}'

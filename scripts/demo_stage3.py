@@ -19,8 +19,6 @@ def main() -> int:
     with httpx.Client(base_url=base, timeout=60.0) as client:
         health = client.get("/health").json()
         print("health:", health)
-        assert health.get("stage") >= 3
-
         budget = client.post(
             "/v1/budgets",
             json={"name": "Stage3 landing tank", "limit_usd": 3.0},

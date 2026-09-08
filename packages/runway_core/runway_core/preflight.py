@@ -100,7 +100,7 @@ def abandon_takeoff_decision(
             f"p90 ${p90:.4f} fits in usable ${usable:.4f}. "
             "Clear for takeoff — still watch burn in flight."
         )
-        suggestions = ["Log usage against this flight once Stage 3 starts"]
+        suggestions = ["Log usage against this flight once it is IN_FLIGHT"]
 
     return {
         "decision": decision,
